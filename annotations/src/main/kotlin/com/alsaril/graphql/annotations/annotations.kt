@@ -1,7 +1,5 @@
 package com.alsaril.graphql.annotations
 
-import graphql.Scalars
-import graphql.schema.GraphQLFieldDefinition
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
 import java.lang.IllegalStateException
@@ -29,16 +27,15 @@ fun createSchema(klass: Class<out Any>): GraphQLSchema {
     return GraphQLSchema.newSchema().query(field.get(null) as GraphQLObjectType).build()
 }
 
-/*
-@Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
-@MustBeDocumented
-@Retention
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.SOURCE)
 annotation class GraphQLField(
         val name: String = "",
         val description: String = "",
         val nullable: Boolean = false
 )
-
+/*
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @MustBeDocumented
 @Retention

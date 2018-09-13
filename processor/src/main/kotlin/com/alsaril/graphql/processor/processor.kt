@@ -1,5 +1,6 @@
 package com.alsaril.graphql.processor
 
+import com.alsaril.graphql.annotations.GraphQLField
 import com.alsaril.graphql.annotations.GraphQLRoot
 import com.google.auto.service.AutoService
 import javax.annotation.processing.AbstractProcessor
@@ -7,10 +8,7 @@ import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.Processor
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion
-import javax.lang.model.element.Element
-import javax.lang.model.element.ElementKind
-import javax.lang.model.element.ExecutableElement
-import javax.lang.model.element.TypeElement
+import javax.lang.model.element.*
 import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
@@ -73,14 +71,27 @@ class ListTypeAnnotationProcessor : AbstractProcessor() {
                 it.write("public class Generated$$name {\n")
                 it.write("    public static final GraphQLObjectType TYPE = ")
                 it.write("GraphQLObjectType\n            .newObject()\n            .name(\"${element.simpleName}\")\n")
-                (element.asType() as DeclaredType).asElement().enclosedElements.forEach { el ->
+                val elements = (element.asType() as DeclaredType).asElement().enclosedElements
+                elements.forEach { el ->
                     if (el.simpleName.startsWith("get") && el.kind == ElementKind.METHOD) {
                         val method = el as ExecutableElement
                         print(element.toString() + " " + el.simpleName)
                         val fieldName = el.simpleName.substring(3).let { it[0].toLowerCase() + it.substring(1) }
+                        val realField = elements.firstOrNull { it.simpleName.toString() == fieldName && it.kind == ElementKind.FIELD }
+                                ?: return@forEach
+                        if ((realField as VariableElement).modifiers.contains(Modifier.TRANSIENT)) return@forEach
                         val type = method.returnType
                         val gType = gType(type) ?: generateObject((type as DeclaredType).asElement())
                         it.write("            .field(G\$H.bF(\"$fieldName\", $gType, env -> ((${element.simpleName}) env.getSource()).${el.simpleName}()))\n")
+                    }
+                    if (el.kind == ElementKind.METHOD) {
+                        val method = el as ExecutableElement
+                        val ann = method.getAnnotation(GraphQLField::class.java)
+                        if (ann != null) {
+                            val type = method.returnType
+                            val gType = gType(type) ?: generateObject((type as DeclaredType).asElement())
+                            it.write("            .field(G\$H.bF(\"${method.simpleName}\", $gType, env -> ((${element.simpleName}) env.getSource()).${el.simpleName}()))\n")
+                        }
                     }
                 }
                 it.write("            .build();\n")
