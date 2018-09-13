@@ -2,14 +2,27 @@ package com.alsaril.graphql.test
 
 import com.alsaril.graphql.annotations.GraphQLRoot
 import com.alsaril.graphql.annotations.createSchema
-import graphql.schema.GraphQLObjectType
-
-class Point(val x: Double, val y: Double)
 
 @GraphQLRoot
-class Area(val p1: Point, val p2: Point)
+data class Address(
+        val id: Long = 0,
+        val lat: Double,
+        val lon: Double,
+        val description: String,
+        val metros: List<List<AddressMetro?>?>
+)
+
+data class AddressMetro(
+        val id: Long = 0,
+        val address: Address,
+        val station: String,
+        val line: String,
+        val color: String,
+        val distance: Double
+)
+
 
 fun main(args: Array<String>) {
-    val schema = createSchema(Area::class.java)
+    val schema = createSchema(Address::class.java)
     println(schema)
 }

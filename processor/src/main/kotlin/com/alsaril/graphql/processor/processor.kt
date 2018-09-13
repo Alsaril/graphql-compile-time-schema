@@ -22,11 +22,23 @@ class ListTypeAnnotationProcessor : AbstractProcessor() {
         processingEnv.messager.printMessage(Diagnostic.Kind.WARNING, a.toString())
     }
 
-    fun gType(type: TypeMirror) = when {
-        type.kind == TypeKind.BOOLEAN -> "Scalars.GraphQLBoolean"
-        type.kind == TypeKind.INT -> "Scalars.GraphQLInt"
-        type.kind == TypeKind.DOUBLE -> "Scalars.GraphQLFloat"
-        else -> null
+    fun gType(type: TypeMirror): String? {
+        print(type)
+        return when {
+            type.kind == TypeKind.BOOLEAN -> "Scalars.GraphQLBoolean"
+            type.kind == TypeKind.INT -> "Scalars.GraphQLInt"
+            type.kind == TypeKind.LONG -> "Scalars.GraphQLLong"
+            type.kind == TypeKind.DOUBLE -> "Scalars.GraphQLFloat"
+            type.kind == TypeKind.DECLARED && (type as DeclaredType).toString() == "java.lang.String" -> "Scalars.GraphQLString"
+            type.kind == TypeKind.DECLARED && (type as DeclaredType).toString().startsWith("java.util.List") -> {
+                print("Processing list of ${type.typeArguments.first()}")
+                "new GraphQLList(new GraphQLNonNull(" + gType(type.typeArguments.first()) + "))"
+            }
+            type.kind == TypeKind.DECLARED -> {
+                generateObject((type as DeclaredType).asElement())
+            }
+            else -> null
+        }
     }
 
     override fun init(processingEnv: ProcessingEnvironment) {
@@ -45,10 +57,12 @@ class ListTypeAnnotationProcessor : AbstractProcessor() {
     }
 
     private val map = mutableMapOf<Element, String>()
+    private val processing = mutableMapOf<Element, String>()
 
     private fun generateObject(element: Element): String {
-        return map[element] ?: run {
+        return map[element] ?: processing[element]?.let { " new GraphQLTypeReference(\"$it\")" } ?: run {
             val name = element.simpleName
+            processing[element] = name.toString()
             val file = processingEnv.filer.createSourceFile("com.alsaril.graphql.generated.Generated$$name")
             file.openWriter().use {
                 it.write("package com.alsaril.graphql.generated;\n\n")
@@ -62,6 +76,7 @@ class ListTypeAnnotationProcessor : AbstractProcessor() {
                 (element.asType() as DeclaredType).asElement().enclosedElements.forEach { el ->
                     if (el.simpleName.startsWith("get") && el.kind == ElementKind.METHOD) {
                         val method = el as ExecutableElement
+                        print(element.toString() + " " + el.simpleName)
                         val fieldName = el.simpleName.substring(3).let { it[0].toLowerCase() + it.substring(1) }
                         val type = method.returnType
                         val gType = gType(type) ?: generateObject((type as DeclaredType).asElement())
@@ -72,6 +87,7 @@ class ListTypeAnnotationProcessor : AbstractProcessor() {
                 it.write("}")
             }
             map[element] = "Generated\$$name.TYPE"
+            processing.remove(element)
             "Generated\$$name.TYPE"
         }
     }
