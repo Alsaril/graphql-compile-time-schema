@@ -1,0 +1,3 @@
+rootProject.name = 'processor'
+include ':annotations'
+project(':annotations').projectDir = new File(settingsDir, '../annotations')

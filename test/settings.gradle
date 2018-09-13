@@ -1,0 +1,5 @@
+rootProject.name = 'test'
+include ':processor'
+project(':processor').projectDir = new File(settingsDir, '../processor')
+include ':annotations'
+project(':annotations').projectDir = new File(settingsDir, '../annotations')
